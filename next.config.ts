@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import { hostname } from "os";
 
 const nextConfig: NextConfig = {
   typescript: {
@@ -16,9 +15,12 @@ const nextConfig: NextConfig = {
   },
 
   reactCompiler: true,
+
   experimental: {
     turbopackFileSystemCacheForDev: true,
+    optimizeCss: true, // valid
   },
+
   async rewrites() {
     return [
       {
@@ -31,7 +33,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // This is required to support PostHog trailing slash API requests
+
   skipTrailingSlashRedirect: true,
 };
 

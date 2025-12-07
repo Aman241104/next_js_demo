@@ -110,35 +110,25 @@ const EventSchema = new Schema<IEvent>(
 );
 
 // Pre-save hook for slug generation and data normalization
-// UPDATED: Async function, no 'next', safe error handling
-EventSchema.pre('save', async function () {
+EventSchema.pre('save', function (next) {
   const event = this as IEvent;
 
-  try {
-    // Generate slug only if title changed or document is new
-    if (event.isModified('title') || event.isNew) {
-      event.slug = generateSlug(event.title);
-    }
-
-    // Normalize date to ISO format if it's not already
-    if (event.isModified('date')) {
-      event.date = normalizeDate(event.date);
-    }
-
-    // Normalize time format (HH:MM)
-    if (event.isModified('time')) {
-      event.time = normalizeTime(event.time);
-    }
-  } catch (error: unknown) {
-    // Type-safe error handling to satisfy ESLint
-    if (error instanceof Error) {
-      // Re-brand standard Errors as ValidationErrors so the API returns 400
-      const validationError = new Error(error.message);
-      validationError.name = 'ValidationError';
-      throw validationError;
-    }
-    throw error;
+  // Generate slug only if title changed or document is new
+  if (event.isModified('title') || event.isNew) {
+    event.slug = generateSlug(event.title);
   }
+
+  // Normalize date to ISO format if it's not already
+  if (event.isModified('date')) {
+    event.date = normalizeDate(event.date);
+  }
+
+  // Normalize time format (HH:MM)
+  if (event.isModified('time')) {
+    event.time = normalizeTime(event.time);
+  }
+
+  next();
 });
 
 // Helper function to generate URL-friendly slug
@@ -166,25 +156,25 @@ function normalizeTime(timeString: string): string {
   // Handle various time formats and convert to HH:MM (24-hour format)
   const timeRegex = /^(\d{1,2}):(\d{2})(\s*(AM|PM))?$/i;
   const match = timeString.trim().match(timeRegex);
-
+  
   if (!match) {
     throw new Error('Invalid time format. Use HH:MM or HH:MM AM/PM');
   }
-
+  
   let hours = parseInt(match[1]);
   const minutes = match[2];
   const period = match[4]?.toUpperCase();
-
+  
   if (period) {
     // Convert 12-hour to 24-hour format
     if (period === 'PM' && hours !== 12) hours += 12;
     if (period === 'AM' && hours === 12) hours = 0;
   }
-
+  
   if (hours < 0 || hours > 23 || parseInt(minutes) < 0 || parseInt(minutes) > 59) {
     throw new Error('Invalid time values');
   }
-
+  
   return `${hours.toString().padStart(2, '0')}:${minutes}`;
 }
 

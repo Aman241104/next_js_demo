@@ -1,31 +1,60 @@
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
-import { IEvent } from "@/database";
 import { cacheLife } from "next/cache";
 import Eventcard from "@/components/Eventcard";
-// import { events } from "@/lib/constants";
+import { Suspense } from "react";
 
-const page = async () => {
+type EventDTO = {
+  _id: string;
+  slug: string;
+  title: string;
+  image: string;
+  location: string;
+  date: string;
+  time: string;
+};
+
+const BASE_URL =
+  process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+const EventList = ({ events }: { events: EventDTO[] }) => {
+  return (
+    <ul className="events">
+      {events.map((event) => (
+        <li key={event._id} className="list-none">
+          <Eventcard {...event} />
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+const EventsPage = async () => {
   "use cache";
-  cacheLife("seconds");
+  cacheLife("hours");
 
-  const response = await fetch(`${BASE_URL}/api/events`);
-  const { events } = await response.json();
-    
+  let events: EventDTO[] = [];
+
+  try {
+    const response = await fetch(`${BASE_URL}/api/events`, {
+      cache: "force-cache",
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      events = data.events ?? [];
+    }
+  } catch (err) {
+    console.error("fetch error:", err);
+  }
+
   return (
     <div className="space-y-5">
       <h3>Featured Events</h3>
-      <ul className="events">
-        {events &&
-          events.length > 0 &&
-          events.map((event: IEvent) => (
-            <li key={event.title} className="list-none">
-              <Eventcard {...event} />
-            </li>
-          ))}
-      </ul>
+
+      <Suspense fallback={<p>Loading events...</p>}>
+        <EventList events={events} />
+      </Suspense>
     </div>
   );
 };
 
-export default page;
-
+export default EventsPage;

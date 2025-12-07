@@ -1,4 +1,3 @@
-import { cacheLife } from "next/cache";
 import Eventcard from "@/components/Eventcard";
 
 type EventDTO = {
@@ -27,18 +26,16 @@ function getBaseUrl() {
 const BASE_URL = getBaseUrl();
 
 const EventsPage = async () => {
-  "use cache";
-  cacheLife("seconds");
-
   let events: EventDTO[] = [];
 
   try {
     const response = await fetch(`${BASE_URL}/api/events`, {
-      cache: "force-cache",
+      // let Next handle caching via revalidate, no "use cache" drama
+      next: { revalidate: 3600 },
     });
 
     if (response.ok) {
-      const data = await response.json();
+      const data = (await response.json()) as { events?: EventDTO[] };
       events = data.events ?? [];
     } else {
       console.error(

@@ -1,75 +1,36 @@
 import ExploreBtn from "@/components/ExploreBtn";
 import EventCard from "@/components/Eventcard";
+import {IEvent} from "@/database";
+import {cacheLife} from "next/cache";
 
-// Use a light DTO type instead of importing mongoose types
-type EventDTO = {
-  _id?: string;
-  slug?: string;
-  title: string;
-  image: string;
-  location: string;
-  date: string;
-  time: string;
-};
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
 const Page = async () => {
-  "use cache";
+    'use cache';
+    cacheLife('hours')
+    const response = await fetch(`${BASE_URL}/api/events`);
+    const { events } = await response.json();
 
-  let events: EventDTO[] = [];
+    return (
+        <section>
+            <h1 className="text-center">The Hub for Every Dev <br /> Event You Can&apos;t Miss</h1>
+            <p className="text-center mt-5">Hackathons, Meetups, and Conferences, All in One Place</p>
 
-  try {
-    const response = await fetch("/api/events", {
-      // internal fetch, no BASE_URL, no localhost nonsense
-      next: { revalidate: 3600 },
-    });
+            <ExploreBtn />
 
-    if (response.ok) {
-      const data = await response.json();
-      events = data.events ?? [];
-    } else {
-      console.error(
-        "Failed to fetch events on home page:",
-        response.status,
-        response.statusText
-      );
-    }
-  } catch (err) {
-    console.error("Fetch /api/events failed on home page:", err);
-  }
+            <div className="mt-20 space-y-7">
+                <h3>Featured Events</h3>
 
-  return (
-    <section>
-      <h1 className="text-center">
-        The Hub for Every Dev <br /> Event You Can&apos;t Miss
-      </h1>
-      <p className="text-center mt-5">
-        Hackathons, Meetups, and Conferences, All in One Place
-      </p>
-
-      <ExploreBtn />
-
-      <div className="mt-20 space-y-7">
-        <h3>Featured Events</h3>
-
-        <ul className="events">
-          {events.length > 0 ? (
-            events.map((event) => (
-              <li
-                key={event._id ?? event.slug ?? event.title}
-                className="list-none"
-              >
-                <EventCard {...event} />
-              </li>
-            ))
-          ) : (
-            <p className="text-sm text-zinc-400">
-              No events found. (Or the API/database is sleeping.)
-            </p>
-          )}
-        </ul>
-      </div>
-    </section>
-  );
-};
+                <ul className="events">
+                    {events && events.length > 0 && events.map((event: IEvent) => (
+                        <li key={event.title} className="list-none">
+                            <EventCard {...event} />
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        </section>
+    )
+}
 
 export default Page;

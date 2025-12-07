@@ -1,6 +1,5 @@
 import { cacheLife } from "next/cache";
 import Eventcard from "@/components/Eventcard";
-import { Suspense } from "react";
 
 type EventDTO = {
   _id: string;
@@ -12,24 +11,24 @@ type EventDTO = {
   time: string;
 };
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+function getBaseUrl() {
+  const raw =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.NEXT_PUBLIC_VERCEL_URL ||
+    "http://localhost:3000";
 
-const EventList = ({ events }: { events: EventDTO[] }) => {
-  return (
-    <ul className="events">
-      {events.map((event) => (
-        <li key={event._id} className="list-none">
-          <Eventcard {...event} />
-        </li>
-      ))}
-    </ul>
-  );
-};
+  if (!raw.startsWith("http://") && !raw.startsWith("https://")) {
+    return `https://${raw}`;
+  }
+
+  return raw;
+}
+
+const BASE_URL = getBaseUrl();
 
 const EventsPage = async () => {
   "use cache";
-  cacheLife("hours");
+  cacheLife("seconds");
 
   let events: EventDTO[] = [];
 
@@ -41,18 +40,34 @@ const EventsPage = async () => {
     if (response.ok) {
       const data = await response.json();
       events = data.events ?? [];
+    } else {
+      console.error(
+        "Failed to fetch /api/events:",
+        response.status,
+        response.statusText
+      );
     }
   } catch (err) {
-    console.error("fetch error:", err);
+    console.error("Fetch /api/events failed:", err);
   }
 
   return (
     <div className="space-y-5">
       <h3>Featured Events</h3>
 
-      <Suspense fallback={<p>Loading events...</p>}>
-        <EventList events={events} />
-      </Suspense>
+      <ul className="events">
+        {events.length > 0 ? (
+          events.map((event) => (
+            <li key={event._id} className="list-none">
+              <Eventcard {...event} />
+            </li>
+          ))
+        ) : (
+          <p className="text-sm text-zinc-400">
+            No events found. Either DB is empty or /api/events failed.
+          </p>
+        )}
+      </ul>
     </div>
   );
 };

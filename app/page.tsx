@@ -1,11 +1,6 @@
 import ExploreBtn from "@/components/ExploreBtn";
 import EventCard from "@/components/Eventcard";
-import { cacheLife } from "next/cache";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-
-// Keep UI types dumb; don't import mongoose types here
 type EventDTO = {
   _id: string;
   slug: string;
@@ -16,27 +11,39 @@ type EventDTO = {
   time: string;
 };
 
-const Page = async () => {
-  "use cache";
-  cacheLife("hours");
+function getBaseUrl() {
+  const raw =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.NEXT_PUBLIC_VERCEL_URL ||
+    "http://localhost:3000";
 
+  if (!raw.startsWith("http://") && !raw.startsWith("https://")) {
+    return `https://${raw}`;
+  }
+
+  return raw;
+}
+
+const BASE_URL = getBaseUrl();
+
+const Page = async () => {
   let events: EventDTO[] = [];
 
   try {
     const response = await fetch(`${BASE_URL}/api/events`, {
-      cache: "force-cache",
+      // normal ISR-style caching instead of "use cache"
+      next: { revalidate: 3600 },
     });
 
-    if (!response.ok) {
+    if (response.ok) {
+      const data = (await response.json()) as { events?: EventDTO[] };
+      events = data.events ?? [];
+    } else {
       console.error(
         "Failed to fetch /api/events on home:",
         response.status,
         response.statusText
       );
-    } else {
-      // Guard JSON parsing so HTML error pages don't crash build
-      const data = (await response.json()) as { events?: EventDTO[] };
-      events = data.events ?? [];
     }
   } catch (err) {
     console.error("Error fetching /api/events on home:", err);
@@ -65,7 +72,7 @@ const Page = async () => {
             ))
           ) : (
             <p className="text-sm text-zinc-400">
-              No events found. Either DB is empty or the API returned an error.
+              No events found. Either DB is empty or /api/events failed.
             </p>
           )}
         </ul>
